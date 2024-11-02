@@ -1,6 +1,8 @@
 using System.Collections;
+using Etern0nety.DI;
 using TMPro;
 using UnityEngine;
+using UnityEngine.Serialization;
 using UnityEngine.UI;
 using Random = UnityEngine.Random;
 
@@ -25,52 +27,33 @@ namespace Etern0nety.Clicker.UI
         [SerializeField] private float _addedScoreRandomRadius = 20f;
         [Header("Leaderboard")]
         [SerializeField] private Button _leaderboardButton;
-        [SerializeField] private LeaderboadUI _leaderboard;
+        [SerializeField] private LeaderboardUI _leaderboard;
+        [FormerlySerializedAs("_accelerationTimerIcon")]
         [Header("Tap Acceleration")]
-        [SerializeField] private Image _accelerationTimerIcon;
-        [SerializeField] private TapAccelerator _tapAccelerator;
-        [Space]
-        [SerializeField] private Player _player;
+        [SerializeField] private Image _timerIcon;
+        [Header("Advertisement")]
+        [SerializeField] private Button _advertisementButton;
+        
+        public Button AdvertisementButton => _advertisementButton;
+        public Button TapButton => _tapButton;
+        public LeaderboardUI LeaderboardUI => _leaderboard;
 
-        private void Awake()
+        public void Awake()
         {
-            _tapButton.onClick.AddListener(TapButton);
             _leaderboardButton.onClick.AddListener(_leaderboard.Toggle);
-
-            _player.ScoreChanged += UpdateScoreText;
-            
-            _tapAccelerator.Started += OnAccelerationStarted;
-            _tapAccelerator.ScoreAdded += OnAccelerationScoreAdded;
-            
-            UpdateScoreText(_player.Score);
         }
+
         private void OnDestroy()
         {
-            _tapButton.onClick.RemoveListener(TapButton);
             _leaderboardButton.onClick.RemoveListener(_leaderboard.Toggle);
-
-            _player.ScoreChanged -= UpdateScoreText;
-            
-            _tapAccelerator.Started -= OnAccelerationStarted;
-            _tapAccelerator.ScoreAdded -= OnAccelerationScoreAdded;
         }
 
-        private void UpdateScoreText(long score)
+        public void SetScore(long score)
         {
             _scoreText.text = score.ToString("N0");
         }
 
-        private void TapButton()
-        {
-            var score = _player.ScoreForTap;
-
-            _player.AddScore(score);
-
-            Vector2 position = Input.mousePosition;
-            DisplayTap(score, position);
-        }
-        
-        private void DisplayTap(int score, Vector2 position)
+        public void DisplayTap(int score, Vector2 position)
         {
             if (_addedScorePrefab == null) return;
             
@@ -124,12 +107,18 @@ namespace Etern0nety.Clicker.UI
         }
         
         #region Acceleration bonus
+        
 
-        private void OnAccelerationStarted()
+        private Coroutine _busterTimerCoroutine;
+        
+        public void StartBusterTimer(float time)
         {
-            StartCoroutine(AccelerationTimerAnimation());
+            if(_busterTimerCoroutine != null) StopCoroutine(_busterTimerCoroutine);
+            
+            _busterTimerCoroutine = StartCoroutine(BusterTimerAnimation(time));
         }
-        private void OnAccelerationScoreAdded(int score)
+        
+        public Vector2 GetRandomTapButtonPoint()
         {
             var buttonTransform = _tapButton.transform as RectTransform;
             var buttonRect = buttonTransform.rect;
@@ -137,25 +126,23 @@ namespace Etern0nety.Clicker.UI
             var randomX = Random.Range(buttonRect.xMin, buttonRect.xMax);
             var randomY = Random.Range(buttonRect.yMin, buttonRect.yMax);
             
-            var position = new Vector2(randomX, randomY) + (Vector2)buttonTransform.position;
-
-            DisplayTap(score, position);
+            return new Vector2(randomX, randomY) + (Vector2)buttonTransform.position;
         }
-        private IEnumerator AccelerationTimerAnimation()
+
+        private IEnumerator BusterTimerAnimation(float time)
         {
-        
-            _accelerationTimerIcon.fillAmount = 1f;
-            _accelerationTimerIcon.gameObject.SetActive(true);
+            _timerIcon.fillAmount = 1f;
+            _timerIcon.gameObject.SetActive(true);
             
-            var timer = new Timer(_tapAccelerator.WorkingTime);
+            var timer = new Timer(time);
             while (timer.IsRunning)
             {
-                _accelerationTimerIcon.fillAmount = 1f - timer.Progress;
+                _timerIcon.fillAmount = 1f - timer.Progress;
                 yield return null;
             }
 
-            _accelerationTimerIcon.fillAmount = 0f;
-            _accelerationTimerIcon.gameObject.SetActive(false);
+            _timerIcon.fillAmount = 0f;
+            _timerIcon.gameObject.SetActive(false);
         }
 
         #endregion

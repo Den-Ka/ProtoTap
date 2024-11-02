@@ -1,43 +1,43 @@
+using System;
+using System.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.Advertisements;
 using UnityEngine.UI;
 
 namespace Etern0nety.Clicker.Ads
 {
-    public class UnityAds : MonoBehaviour, IUnityAdsInitializationListener, IUnityAdsLoadListener, IUnityAdsShowListener
+    public class UnityAds : IAdvertisementService, IUnityAdsInitializationListener, IUnityAdsLoadListener, IUnityAdsShowListener
     {
-        [SerializeField] private Button _rewardedAdsButton;
-        [SerializeField] private TapAccelerator _tapAccelerator;
-        [SerializeField] private bool _testMode;
-        [Space]
-        [SerializeField] private string _androidId;
-        [SerializeField] private string _iosId;
+        private readonly bool _testMode;
         
+        private const string _androidId = "5720513";
+        private const string _iosId = "5720512";
+                
         private const string _rewardedAndroid = "Rewarded_Android";
         private const string _rewardedIOS = "Rewarded_iOS";
         
         private string _actualId;
         private string _rewardedId;
-        private bool _adLoaded = false;
-        private bool _bonusInProgress = false;
 
+        public event Action AdvertisementLoaded;
+        public event Action AdvertisementLoadFailed;
+        public event Action AdvertisementShown;
+        public event Action AdvertisementClosed;
+        public event Action AdvertisementRewarded;
+        
+        private Action<bool> _loadCallback;
+        private Action<bool> _rewardedCallback;
+
+        private bool _initializing = false;
+            
         #region Initialization
-
-        private void Awake()
+        
+        public UnityAds(bool testMode)
         {
-            InitializeAds();
-
-            _rewardedAdsButton.interactable = false;
-            _rewardedAdsButton.onClick.AddListener(ShowAd);
-            _tapAccelerator.Finished += OnBonusFinished;
+            _testMode = testMode;
         }
-
-        private void OnDestroy()
-        {
-            _tapAccelerator.Finished -= OnBonusFinished;
-        }
-
-        private void InitializeAds()
+        
+        private void Initialize()
         {
 #if UNITY_IOS
             _actualId = _iosId;
@@ -46,93 +46,102 @@ namespace Etern0nety.Clicker.Ads
             _actualId = _androidId;
             _rewardedId = _rewardedAndroid;
 #endif
-
-            Debug.Log("Unity Ads initialization.");
+            
             if (!Advertisement.isSupported)
             {
                 Debug.Log("Unity Ads is not supported.");
                 return;
             }
-            if (!Advertisement.isInitialized)
-            {
-                Debug.Log("Unity Ads initialization started.");
-                Advertisement.Initialize(_androidId, _testMode, this);
-            }
-            else
-            {
-                Debug.Log("Unity Ads initialized.");
-                LoadAd();                
-            }
+
+            if (Advertisement.isInitialized) return;
+            
+            _initializing = true;
+            
+            Debug.Log("Unity Ads initialization started.");
+            Advertisement.Initialize(_androidId, _testMode, this);
         }
         
         public void OnInitializationComplete()
         {
             Debug.Log("Unity Ads initialized.");
-            LoadAd();
+            _initializing = false;
         }
 
         public void OnInitializationFailed(UnityAdsInitializationError error, string message)
         {
             Debug.Log("Unity Ads initialization failed: " + message);
+            _initializing = false;
         }
 
         #endregion
 
-        private void OnBonusFinished()
-        {
-            _bonusInProgress = false;
-            ValidateRewardButton();
-        }
+        #region Load Advertisement
 
-        private void ValidateRewardButton()
+        public async void LoadAdvertisement(Action<bool> callbackLoaded)
         {
-            _rewardedAdsButton.interactable = !_bonusInProgress && _adLoaded;
-        }
 
-        #region Ad Loading
-        
-        private void LoadAd()
-        {
+            _loadCallback = callbackLoaded;
+
+            if (!Advertisement.isInitialized)
+            {
+                if (!_initializing) Initialize();
+                while (_initializing)
+                {
+                    await Awaitable.EndOfFrameAsync();
+                }
+            }
+            
             Debug.Log("Unity Ads loading.");
             Advertisement.Load(_rewardedId, this);
         }
         public void OnUnityAdsAdLoaded(string placementId)
         {
-            _adLoaded = true;
-            ValidateRewardButton();
+            _loadCallback?.Invoke(true);
+            AdvertisementLoaded?.Invoke();
         }
         public void OnUnityAdsFailedToLoad(string placementId, UnityAdsLoadError error, string message)
         {
+            _loadCallback?.Invoke(false);
+            AdvertisementLoadFailed?.Invoke();
+            
             Debug.Log($"Error loading Ad Unit {placementId}: {error.ToString()} - {message}");
         }
-        
+
         #endregion
 
-        #region Show ad
+        #region Show Advertisement
 
-        private void ShowAd()
+        public void ShowAdvertisement(Action<bool> callbackRewarded)
         {
+            _rewardedCallback = callbackRewarded;
+            
             Advertisement.Show(_rewardedId, this);
-            _rewardedAdsButton.interactable = false;
         }
-
+        public void OnUnityAdsShowStart(string placementId)
+        {
+            AdvertisementShown?.Invoke();
+        }
+        public void OnUnityAdsShowClick(string placementId) { }
         public void OnUnityAdsShowComplete(string placementId, UnityAdsShowCompletionState showCompletionState)
         {
             if (showCompletionState == UnityAdsShowCompletionState.COMPLETED)
             {
-                _tapAccelerator.Launch();
+                AdvertisementRewarded?.Invoke();
+                _rewardedCallback?.Invoke(true);
+            }
+            else
+            {
+                AdvertisementClosed?.Invoke();
+                _rewardedCallback?.Invoke(false);
             }
         }
-
-        public void OnUnityAdsShowStart(string placementId) { }
-        
-        public void OnUnityAdsShowClick(string placementId) { }
-        
         public void OnUnityAdsShowFailure(string placementId, UnityAdsShowError error, string message)
         {
+            AdvertisementClosed?.Invoke();
+            _rewardedCallback?.Invoke(false);
             Debug.Log($"Error showing Ad Unit {placementId}: {error.ToString()} - {message}");
         }
-        
+
         #endregion
     }
 }
