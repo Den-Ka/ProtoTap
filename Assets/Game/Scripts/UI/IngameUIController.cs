@@ -1,9 +1,7 @@
+using Etern0nety.Clicker.Leaderboard;
 using Etern0nety.Clicker.UI;
 using Etern0nety.DI;
-using TMPro.EditorUtilities;
-using UnityEditor;
 using UnityEngine;
-using UnityEngine.UI;
 
 namespace Etern0nety.Clicker
 {
@@ -30,12 +28,12 @@ namespace Etern0nety.Clicker
 
             //==========================================================//
             
-            _ui.TapButton.onClick.AddListener(OnTapButton);
+            _ui.TapButton.OnClick.AddListener(OnTapButton);
             
             _player.ScoreChanged += _ui.SetScore;
             _ui.SetScore(_player.Score);
             
-            _buster.Finished += OnBurstFinished;
+            _buster.Finished += OnBusterFinished;
             _buster.ScoreAdded += OnBusterScoreAdded;
 
             _ui.LeaderboardUI.Opened += OnLeaderboardOpened;
@@ -71,14 +69,16 @@ namespace Etern0nety.Clicker
             var tapPosition = Input.mousePosition;
             
             _player.AddScore(scoreToAdd);
-            
-            _ui.DisplayTap(scoreToAdd, tapPosition);
+
+            _ui.DisplayTap();
+            _ui.DisplayAddedScore(scoreToAdd, tapPosition);
         }
 
         private void OnBusterScoreAdded(int score)
         {
             var tapPosition = _ui.GetRandomTapButtonPoint();
-            _ui.DisplayTap(score, tapPosition);
+            _ui.DisplayTap();
+            _ui.DisplayAddedScore(score, tapPosition);
         }
 
 
@@ -90,7 +90,7 @@ namespace Etern0nety.Clicker
         private void OnAdvertisementRewarded()
         {
             _buster.Launch();
-            _ui.StartBusterTimer(_buster.TotalTime);
+            _ui.StartNewTimer(_buster);
             _busterIsActive = true;
         }
 
@@ -103,7 +103,7 @@ namespace Etern0nety.Clicker
             _advertisement.LoadAdvertisement(); //Prepare next advertisement
         }
         
-        private void OnBurstFinished()
+        private void OnBusterFinished()
         {
             _busterIsActive = false;
             ValidateAdvertisementButton();

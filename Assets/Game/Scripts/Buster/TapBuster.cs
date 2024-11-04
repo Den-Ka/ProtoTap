@@ -6,7 +6,7 @@ using UnityEngine.Serialization;
 
 namespace Etern0nety.Clicker
 {
-    public class TapBuster : MonoBehaviour
+    public class TapBuster : MonoBehaviour, IBooster, IProgression
     {
         [FormerlySerializedAs("_workingTime")] [SerializeField] private float totalTime = 30f;
         [SerializeField] private float _tapPerSecond = 10;

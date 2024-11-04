@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Etern0nety.Clicker.Leaderboard;
 using Etern0nety.DI;
 using TMPro;
 using UnityEngine;
@@ -16,16 +17,6 @@ namespace Etern0nety.Clicker.UI
         [SerializeField] private RectTransform _content;
         [SerializeField] private TextMeshProUGUI _message;
 
-        private readonly Dictionary<string, LeaderboardEntryUI.Tier> _tiers = new()
-        {
-            { "Wood", LeaderboardEntryUI.Tier.Wood },
-            { "Copper", LeaderboardEntryUI.Tier.Copper },
-            { "Iron", LeaderboardEntryUI.Tier.Iron },
-            { "Gold", LeaderboardEntryUI.Tier.Gold },
-            { "Ruby", LeaderboardEntryUI.Tier.Ruby },
-            { "Diamond", LeaderboardEntryUI.Tier.Diamond },
-        };
-        
         public bool IsOpen => gameObject.activeSelf;
 
         public void Toggle()
@@ -73,7 +64,7 @@ namespace Etern0nety.Clicker.UI
                 
                 var isOwner = leaderboard.PlayerEntryIndex == i;
                 
-                entryObject.Initialize(rank, nickname, score, _tiers[tier], isOwner);
+                entryObject.Initialize(rank, nickname, score, tier, isOwner);
             }
 
             if (entriesCount == 0)
